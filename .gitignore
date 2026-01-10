@@ -1,0 +1,16 @@
+# 真正的毒包
+node_modules/
+package-lock.json
+yarn.lock
+
+# 日志
+*.log
+npm-debug.log*
+
+# OS 垃圾
+.DS_Store
+Thumbs.db
+
+# VS Code 个人配置（可选）
+.vscode/
+config.py
