@@ -88,7 +88,7 @@ results = audit_with_llm(samples_csv='data/output/benchmark_sample.csv', on_prog
 | **F1-Score** | 1.0 | 综合评估指标 |
 
 ### 3. Web 界面展示
-![Web UI 截图](image/web_screenshot.png)
+![Web UI 截图](images/web_screenshot.png)
 *注：系统支持点击“运行 LLM 审计”一键触发全流程，并在页面下方实时滚动审计日志。*
 
 ### 4. 分析：为何解析报错？
