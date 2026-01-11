@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 
 
-def run_codeql_analysis(database_path: str, output_json: str = 'codeql_results.json') -> dict:
+def run_codeql_analysis(database_path: str, output_json: str = 'data/output/codeql_results.json') -> dict:
     """
     运行 CodeQL 默认安全查询套件
     
@@ -115,7 +115,7 @@ def compare_llm_vs_codeql(samples_csv: str, llm_results_csv: str,
 
 
 def generate_comparison_report(samples_csv: str, llm_results_csv: str, 
-                               codeql_json: str, output_csv: str = 'comparison_report.csv') -> None:
+                               codeql_json: str, output_csv: str = 'data/output/comparison_report.csv') -> None:
     """
     生成 LLM vs CodeQL 对比报告
     

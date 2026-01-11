@@ -1,19 +1,20 @@
 import json, time, pandas as pd
-from config import DEEPSEEK_API_KEY
 import os
+from dotenv import load_dotenv
 from openai import OpenAI
 from datetime import datetime
-from benchmark_generator import extract_sample_from_benchmark
+from core.benchmark_generator import extract_sample_from_benchmark
 
-# openai.api_key = OPENAI_API_KEY
-# DEEPSEEK_API_KEY
+# 加载 .env 文件
+load_dotenv()
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 prompt = """你是一名代码审计专家。  
 下面给出 Java 函数源码，请判断是否存在安全漏洞（如注入、越界、XXE 等）。  
 按 JSON 回答：{"vuln": true/false, "type": "OWASP Top10 类别", "reason": "一句话原因", "patch": "给出修改后代码片段"}  """
 
 
-def audit_with_llm(samples_csv='benchmark_sample.csv', output_results_csv='benchmark_sample_results.csv', on_progress=None):
+def audit_with_llm(samples_csv='data/output/benchmark_sample.csv', output_results_csv='data/output/benchmark_sample_results.csv', on_progress=None):
     """
     调用LLM对CSV中的样本进行审计，保存结果
     
@@ -25,7 +26,7 @@ def audit_with_llm(samples_csv='benchmark_sample.csv', output_results_csv='bench
     返回:
         list: 包含LLM回复的结果列表
     """
-    
+
     # 读取样本CSV（包含ground truth标签）
     df_samples = pd.read_csv(samples_csv, encoding='utf-8')
     total = len(df_samples)
@@ -108,7 +109,7 @@ def audit_with_llm(samples_csv='benchmark_sample.csv', output_results_csv='bench
     return results
 
 
-def calculate_accuracy(results_csv='benchmark_sample_results.csv'):
+def calculate_accuracy(results_csv='data/output/benchmark_sample_results.csv'):
     """
     计算LLM审计的准确率
     
@@ -178,8 +179,8 @@ def calculate_accuracy(results_csv='benchmark_sample_results.csv'):
 # 调用函数
 if __name__ == "__main__":
     # 先生成测试集样本
-    extract_sample_from_benchmark(sample_size=50, output_csv='benchmark_sample.csv')
+    extract_sample_from_benchmark(sample_size=50, output_csv='data/output/benchmark_sample.csv')
     # 再调用LLM进行审计
-    results = audit_with_llm('benchmark_sample.csv', 'benchmark_sample_results.csv')
+    results = audit_with_llm('data/output/benchmark_sample.csv', 'data/output/benchmark_sample_results.csv')
     # 计算准确率
-    calculate_accuracy('benchmark_sample_results.csv')
+    calculate_accuracy('data/output/benchmark_sample_results.csv')
