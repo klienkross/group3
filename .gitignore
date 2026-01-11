@@ -51,6 +51,3 @@ comparison_report.csv
 # 环境变量
 .env
 .env.local
-
-# 配置（包含敏感信息）
-config.py

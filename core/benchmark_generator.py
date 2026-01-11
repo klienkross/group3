@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 
 
-def extract_sample_from_benchmark(sample_size=50, output_csv='benchmark_sample.csv'):
+def extract_sample_from_benchmark(sample_size=50, output_csv='data/output/benchmark_sample.csv'):
     """
     从benchmark XML文件随机抽取样本，保存为CSV
     
@@ -17,7 +17,7 @@ def extract_sample_from_benchmark(sample_size=50, output_csv='benchmark_sample.c
     """
     
     # 1. 解析XML文件
-    xml_file = 'benchmark/benchmark-crawler-http.xml'
+    xml_file = 'data/input/benchmark-crawler-http.xml'
     tree = ET.parse(xml_file)
     root = tree.getroot()
     
@@ -62,4 +62,4 @@ def extract_sample_from_benchmark(sample_size=50, output_csv='benchmark_sample.c
 
 
 if __name__ == "__main__":
-    extract_sample_from_benchmark(sample_size=50, output_csv='benchmark_sample.csv')
+    extract_sample_from_benchmark(sample_size=50, output_csv='data/output/benchmark_sample.csv')

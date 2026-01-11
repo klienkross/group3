@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify
-from benchmark_generator import extract_sample_from_benchmark
-from llm_security_audit import audit_with_llm, calculate_accuracy
-from codeql_analyzer import run_codeql_analysis, compare_llm_vs_codeql, generate_comparison_report
+from core.benchmark_generator import extract_sample_from_benchmark
+from core.llm_security_audit import audit_with_llm, calculate_accuracy
+from core.codeql_analyzer import run_codeql_analysis, compare_llm_vs_codeql, generate_comparison_report
 import pandas as pd
 import os
 
@@ -27,20 +27,20 @@ def run_pipeline():
     try:
         # 1) 生成测试集
         set_progress('开始生成测试集…')
-        extract_sample_from_benchmark(sample_size=50, output_csv='benchmark_sample.csv')
+        extract_sample_from_benchmark(sample_size=50, output_csv='data/output/benchmark_sample.csv')
         # 2) 运行LLM审计
         set_progress('开始审计…')
-        audit_with_llm('benchmark_sample.csv', 'benchmark_sample_results.csv', on_progress=set_progress)
+        audit_with_llm('data/output/benchmark_sample.csv', 'data/output/benchmark_sample_results.csv', on_progress=set_progress)
         # 3) 计算准确率
         set_progress('计算准确率…')
-        stats = calculate_accuracy('benchmark_sample_results.csv')
+        stats = calculate_accuracy('data/output/benchmark_sample_results.csv')
         
         set_progress('完成')
         
         # 返回少量结果预览
         preview = []
-        if os.path.exists('benchmark_sample_results.csv'):
-            df = pd.read_csv('benchmark_sample_results.csv')
+        if os.path.exists('data/output/benchmark_sample_results.csv'):
+            df = pd.read_csv('data/output/benchmark_sample_results.csv')
             preview = df.head(5).to_dict(orient='records')
         
         return jsonify({
@@ -69,7 +69,7 @@ def run_codeql_comparison():
         
         # 运行 CodeQL 分析
         set_progress('运行 CodeQL 默认查询…')
-        codeql_result = run_codeql_analysis(database_path, 'codeql_results.json')
+        codeql_result = run_codeql_analysis(database_path, 'data/output/codeql_results.json')
         
         if 'error' in codeql_result:
             return jsonify({
@@ -80,18 +80,18 @@ def run_codeql_comparison():
         # 对比 LLM 和 CodeQL 结果
         set_progress('对比分析结果…')
         comparison = compare_llm_vs_codeql(
-            'benchmark_sample.csv',
-            'benchmark_sample_results.csv',
-            'codeql_results.json'
+            'data/output/benchmark_sample.csv',
+            'data/output/benchmark_sample_results.csv',
+            'data/output/codeql_results.json'
         )
         
         # 生成对比报告
         set_progress('生成对比报告…')
         generate_comparison_report(
-            'benchmark_sample.csv',
-            'benchmark_sample_results.csv',
-            'codeql_results.json',
-            'comparison_report.csv'
+            'data/output/benchmark_sample.csv',
+            'data/output/benchmark_sample_results.csv',
+            'data/output/codeql_results.json',
+            'data/output/comparison_report.csv'
         )
         
         set_progress('完成')
@@ -99,7 +99,7 @@ def run_codeql_comparison():
         return jsonify({
             'ok': True,
             'comparison': comparison,
-            'report_file': 'comparison_report.csv'
+            'report_file': 'data/output/comparison_report.csv'
         })
         
     except Exception as e:

@@ -13,15 +13,19 @@
 
 ```
 group3/
-├── app.py                          # Flask 服务器入口
-├── llm_security_audit.py          # LLM 审计核心逻辑
-├── benchmark_generator.py         # 测试集生成器
-├── config.py                      # 配置文件（API密钥等）
+├── app.py                          # Web Server 入口
+├── config.py                       # 配置文件
+├── core/                           # 核心逻辑模块
+│   ├── benchmark_generator.py      # 测试集生成器
+│   ├── llm_security_audit.py       # LLM 审计核心逻辑
+│   └── codeql_analyzer.py          # CodeQL 分析器
+├── data/                           # 数据文件
+│   ├── input/                      # 原始 Benchmark XML
+│   └── output/                     # 生成的 CSV 结果
+├── docs/                           # 项目文档与资源
 ├── templates/
-│   └── index.html                # Web UI 界面
-├── benchmark/
-│   └── benchmark-crawler-http.xml # 数据源
-└── README.md                      # 本文件
+│   └── index.html                  # Web UI 界面
+└── README.md                       # 本文件
 ```
 
 ## 依赖
@@ -33,13 +37,18 @@ group3/
 
 ## 安装
 
-1. 安装依赖：
+1. 创建环境：
 ```bash
-python -m pip install flask pandas openai
+uv sync
 ```
 
 2. 配置 API 密钥：
-编辑 `config.py`，设置你的 DeepSeek API key：
+```bash
+cp sample.env .env
+```
+
+编辑 `.env` 文件，设置你的 DeepSeek API key：
+
 ```python
 DEEPSEEK_API_KEY = "your-api-key-here"
 ```
@@ -64,7 +73,7 @@ python app.py
 ### 方法2：命令行
 
 ```bash
-python llm_security_audit.py
+python core/llm_security_audit.py
 ```
 
 会依次执行：
@@ -79,10 +88,9 @@ python llm_security_audit.py
 **功能**：从 XML 中提取样本，打乱后抽取
 
 ```python
-from benchmark_generator import extract_sample_from_benchmark
-
+from core.benchmark_generator import extract_sample_from_benchmark
 # 抽取 50 条样本
-df = extract_sample_from_benchmark(sample_size=50, output_csv='samples.csv')
+df = extract_sample_from_benchmark(sample_size=50, output_csv='data/output/samples.csv')
 ```
 
 **输出 CSV 列**：
@@ -97,16 +105,16 @@ df = extract_sample_from_benchmark(sample_size=50, output_csv='samples.csv')
 **功能**：运行 CodeQL 分析并对比 LLM 结果
 
 ```python
-from codeql_analyzer import run_codeql_analysis, compare_llm_vs_codeql
+from core.codeql_analyzer import run_codeql_analysis, compare_llm_vs_codeql
 
 # 运行 CodeQL 分析
-run_codeql_analysis('codeql-database', 'codeql_results.json')
+run_codeql_analysis('codeql-database', 'data/output/codeql_results.json')
 
 # 对比结果
 comparison = compare_llm_vs_codeql(
-    'benchmark_sample.csv',
-    'benchmark_sample_results.csv',
-    'codeql_results.json'
+    'data/output/benchmark_sample.csv',
+    'data/output/benchmark_sample_results.csv',
+    'data/output/codeql_results.json'
 )
 ```
 
@@ -128,11 +136,11 @@ codeql database analyze codeql-database security-and-quality.qls --format=json -
 调用 LLM 进行审计，支持实时进度回调
 
 ```python
-from llm_security_audit import audit_with_llm
+from core.llm_security_audit import audit_with_llm
 
 results = audit_with_llm(
-    samples_csv='benchmark_sample.csv',
-    output_results_csv='benchmark_sample_results.csv',
+    samples_csv='data/output/benchmark_sample.csv',
+    output_results_csv='data/output/benchmark_sample_results.csv',
     on_progress=lambda msg: print(msg)  # 可选的进度回调
 )
 ```
@@ -147,9 +155,8 @@ results = audit_with_llm(
 计算审计准确率
 
 ```python
-from llm_security_audit import calculate_accuracy
-
-stats = calculate_accuracy(results_csv='benchmark_sample_results.csv')
+from core.llm_security_audit import calculate_accuracy
+stats = calculate_accuracy(results_csv='data/output/benchmark_sample_results.csv')
 ```
 
 **返回指标**：
