@@ -13,13 +13,14 @@ prompt = """你是一名代码审计专家。
 按 JSON 回答：{"vuln": true/false, "type": "OWASP Top10 类别", "reason": "一句话原因", "patch": "给出修改后代码片段"}  """
 
 
-def audit_with_llm(samples_csv='benchmark_sample.csv', output_results_csv='benchmark_sample_results.csv'):
+def audit_with_llm(samples_csv='benchmark_sample.csv', output_results_csv='benchmark_sample_results.csv', on_progress=None):
     """
     调用LLM对CSV中的样本进行审计，保存结果
     
     参数:
         samples_csv (str): 包含样本的CSV文件
         output_results_csv (str): 输出结果的CSV文件名
+        on_progress (callable): 可选的进度回调函数
     
     返回:
         list: 包含LLM回复的结果列表
@@ -27,7 +28,14 @@ def audit_with_llm(samples_csv='benchmark_sample.csv', output_results_csv='bench
     
     # 读取样本CSV（包含ground truth标签）
     df_samples = pd.read_csv(samples_csv, encoding='utf-8')
-    print(f"读取 {len(df_samples)} 条样本")
+    total = len(df_samples)
+    msg = f"读取 {total} 条样本"
+    print(msg)
+    if on_progress:
+        try:
+            on_progress(msg)
+        except Exception:
+            pass
     
     # 调用LLM获取回复
     client = OpenAI(
@@ -36,7 +44,13 @@ def audit_with_llm(samples_csv='benchmark_sample.csv', output_results_csv='bench
     
     results = []
     for idx, row in df_samples.iterrows():
-        print(f"处理第 {idx+1}/{len(df_samples)} 条: {row['tcName']}")
+        step_msg = f"处理第 {idx+1}/{total} 条: {row['tcName']}"
+        print(step_msg)
+        if on_progress:
+            try:
+                on_progress(step_msg)
+            except Exception:
+                pass
         
         # 只发送tcName、URL、tcType给LLM，不发送ground truth标签
         src = f"URL='{row['URL']}' tcName='{row['tcName']}' tcType='{row['tcType']}'"
@@ -130,17 +144,17 @@ def calculate_accuracy(results_csv='benchmark_sample_results.csv'):
     f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
     
     stats = {
-        'total_samples': len(df),
-        'valid_predictions': total,
-        'correct': correct,
-        'accuracy': accuracy,
-        'true_positive': true_positive,
-        'true_negative': true_negative,
-        'false_positive': false_positive,
-        'false_negative': false_negative,
-        'precision': precision,
-        'recall': recall,
-        'f1_score': f1_score
+        'total_samples': int(len(df)),
+        'valid_predictions': int(total),
+        'correct': int(correct),
+        'accuracy': float(accuracy),
+        'true_positive': int(true_positive),
+        'true_negative': int(true_negative),
+        'false_positive': int(false_positive),
+        'false_negative': int(false_negative),
+        'precision': float(precision),
+        'recall': float(recall),
+        'f1_score': float(f1_score)
     }
     
     print("\n=== 审计准确率统计 ===")

@@ -8,7 +8,6 @@
 - **LLM 审计** - 调用 DeepSeek API 对代码进行安全审计
 - **准确率评估** - 自动计算 Accuracy、Precision、Recall、F1 分数
 - **Web UI** - 简单易用的前端界面，支持实时进度显示
-- **隐藏标签机制** - 向 LLM 隐藏 ground truth，仅暴露必要的代码信息
 
 ## 项目结构
 
@@ -92,6 +91,34 @@ df = extract_sample_from_benchmark(sample_size=50, output_csv='samples.csv')
 - `tcType`: 类型（通常为 SERVLET）
 - `vuln_type`: 漏洞类型（从 URL 提取，不给 LLM 看）
 - `has_vulnerability`: 是否有漏洞（不给 LLM 看）
+
+### codeql_analyzer.py
+
+**功能**：运行 CodeQL 分析并对比 LLM 结果
+
+```python
+from codeql_analyzer import run_codeql_analysis, compare_llm_vs_codeql
+
+# 运行 CodeQL 分析
+run_codeql_analysis('codeql-database', 'codeql_results.json')
+
+# 对比结果
+comparison = compare_llm_vs_codeql(
+    'benchmark_sample.csv',
+    'benchmark_sample_results.csv',
+    'codeql_results.json'
+)
+```
+
+**CodeQL 数据库准备**：
+
+```bash
+# 1. 创建 CodeQL 数据库（Java 项目）
+codeql database create codeql-database --language=java --source-root=<source-code-path>
+
+# 2. 运行默认安全查询
+codeql database analyze codeql-database security-and-quality.qls --format=json --output=codeql_results.json
+```
 
 ### llm_security_audit.py
 
@@ -179,6 +206,60 @@ random.shuffle(samples)
 - `llm_prediction`: LLM 预测（true/false/null）
 - `reply`: LLM 完整回复
 - `timestamp`: 处理时间
+
+### comparison_report.csv
+LLM vs CodeQL 对比报告，包含：
+- `tcName`: 测试用例名
+- `URL`: 代码地址
+- `ground_truth`: 真实标签
+- `llm_prediction`: LLM 预测
+- `llm_correct`: LLM 是否正确
+- `codeql_findings_count`: CodeQL 发现数量
+- `timestamp`: 处理时间
+
+## 使用 CodeQL 进行对比分析
+
+### 前置要求
+
+安装 CodeQL CLI：
+```bash
+# macOS/Linux
+brew install codeql
+
+# Windows (使用 scoop 或直接下载)
+# https://github.com/github/codeql-cli-release/releases
+```
+
+### 流程
+
+1. **创建 CodeQL 数据库**（分析 Java 源代码）
+```bash
+codeql database create codeql-database \
+  --language=java \
+  --source-root=/path/to/java/source
+```
+
+2. **启动 Web 服务**
+```bash
+python app.py
+```
+
+3. **浏览器访问** http://127.0.0.1:5000
+
+4. **点击"开始"** 运行 LLM 审计
+
+5. **点击"CodeQL 分析"**（可选）对比 CodeQL 结果
+   - 会运行 CodeQL 默认安全查询
+   - 生成对比报告
+
+### 对比输出示例
+
+```
+=== LLM vs CodeQL 对比 ===
+LLM 检测出漏洞: 45 个
+CodeQL 检测出漏洞: 52 个
+LLM 准确率: 90.00%
+```
 
 ## 提示
 

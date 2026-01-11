@@ -6,20 +6,28 @@
   <title>LLM 安全审计</title>
   <style>
     body { font-family: system-ui, Arial, sans-serif; margin: 24px; }
-    .btn { padding: 10px 16px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+    .btn { padding: 10px 16px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; cursor: pointer; margin-right: 8px; }
     .btn:disabled { background: #9cbcf9; cursor: not-allowed; }
+    .btn.secondary { background: #10b981; }
+    .btn.secondary:disabled { background: #6ee7b7; }
+    .controls { margin: 16px 0; }
     .card { border: 1px solid #eee; border-radius: 8px; padding: 16px; margin-top: 16px; }
     table { width: 100%; border-collapse: collapse; margin-top: 8px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
     th { background: #f8f8f8; }
-    .stat { display: inline-block; margin-right: 16px; }
+    .stat { display: inline-block; margin-right: 16px; margin-bottom: 8px; }
   </style>
 </head>
 <body>
   <h1>LLM 安全审计演示</h1>
-  <p>点击开始将生成测试集、调用 LLM 审计并计算准确率。</p>
-  <button id="startBtn" class="btn">开始</button>
-  <span id="status" style="margin-left:12px;"></span>
+  
+  <div class="controls">
+    <h3>选择分析模式：</h3>
+    <button id="llmBtn" class="btn">运行 LLM 审计</button>
+    <button id="codeqlBtn" class="btn secondary">运行 CodeQL 分析</button>
+    <br/>
+    <span id="status" style="margin-left:12px;"></span>
+  </div>
 
   <div id="results" class="card" style="display:none;">
     <h2>统计结果</h2>
@@ -39,14 +47,16 @@
   </div>
 
   <script>
-    const startBtn = document.getElementById('startBtn');
+    const llmBtn = document.getElementById('llmBtn');
+    const codeqlBtn = document.getElementById('codeqlBtn');
     const statusEl = document.getElementById('status');
     const resultsEl = document.getElementById('results');
     const statsEl = document.getElementById('stats');
     const tbody = document.querySelector('#previewTable tbody');
 
-    startBtn.addEventListener('click', async () => {
-      startBtn.disabled = true;
+    async function runAnalysis(endpoint) {
+      llmBtn.disabled = true;
+      codeqlBtn.disabled = true;
       resultsEl.style.display = 'none';
       statsEl.innerHTML = '';
       tbody.innerHTML = '';
@@ -61,21 +71,38 @@
       }, 800);
 
       try {
-        const resp = await fetch('/run', { method: 'POST' });
+        const resp = await fetch(endpoint, { method: 'POST' });
         const data = await resp.json();
-        if (!data.ok) throw new Error(data.error || '执行失败');
+        
+        if (!data.ok) {
+          statusEl.textContent = '出错：' + (data.error || '未知错误');
+          return;
+        }
 
         // 渲染统计
-        const s = data.stats || {};
+        const s = data.stats || data.comparison || {};
         const pct = (x) => typeof x === 'number' ? (x * 100).toFixed(2) + '%' : '-';
-        statsEl.innerHTML = `
-          <div class="stat">总样本数: <b>${s.total_samples ?? '-'}</b></div>
-          <div class="stat">有效预测: <b>${s.valid_predictions ?? '-'}</b></div>
-          <div class="stat">准确率: <b>${pct(s.accuracy)}</b></div>
-          <div class="stat">Precision: <b>${pct(s.precision)}</b></div>
-          <div class="stat">Recall: <b>${pct(s.recall)}</b></div>
-          <div class="stat">F1: <b>${pct(s.f1_score)}</b></div>
-        `;
+        
+        let statsHtml = '';
+        if (s.total_samples !== undefined && s.accuracy !== undefined) {
+          // LLM 模式
+          statsHtml = `
+            <div class="stat">总样本数: <b>${s.total_samples ?? '-'}</b></div>
+            <div class="stat">有效预测: <b>${s.valid_predictions ?? '-'}</b></div>
+            <div class="stat">准确率: <b>${pct(s.accuracy)}</b></div>
+            <div class="stat">Precision: <b>${pct(s.precision)}</b></div>
+            <div class="stat">Recall: <b>${pct(s.recall)}</b></div>
+            <div class="stat">F1: <b>${pct(s.f1_score)}</b></div>
+          `;
+        } else if (s.codeql_findings !== undefined) {
+          // CodeQL 模式
+          statsHtml = `
+            <div class="stat">LLM 检测: <b>${s.llm_detections ?? '-'}</b></div>
+            <div class="stat">CodeQL 检测: <b>${s.codeql_findings ?? '-'}</b></div>
+            <div class="stat">样本总数: <b>${s.total_samples ?? '-'}</b></div>
+          `;
+        }
+        statsEl.innerHTML = statsHtml;
 
         // 渲染预览
         (data.preview || []).forEach(r => {
@@ -96,9 +123,13 @@
         statusEl.textContent = '出错：' + err.message;
       } finally {
         clearInterval(pollId);
-        startBtn.disabled = false;
+        llmBtn.disabled = false;
+        codeqlBtn.disabled = false;
       }
-    });
+    }
+
+    llmBtn.addEventListener('click', () => runAnalysis('/run'));
+    codeqlBtn.addEventListener('click', () => runAnalysis('/codeql'));
   </script>
 </body>
 </html>
