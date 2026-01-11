@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LLM 安全审计</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 24px; }
+    .btn { padding: 10px 16px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+    .btn:disabled { background: #9cbcf9; cursor: not-allowed; }
+    .card { border: 1px solid #eee; border-radius: 8px; padding: 16px; margin-top: 16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f8f8f8; }
+    .stat { display: inline-block; margin-right: 16px; }
+  </style>
+</head>
+<body>
+  <h1>LLM 安全审计演示</h1>
+  <p>点击开始将生成测试集、调用 LLM 审计并计算准确率。</p>
+  <button id="startBtn" class="btn">开始</button>
+  <span id="status" style="margin-left:12px;"></span>
+
+  <div id="results" class="card" style="display:none;">
+    <h2>统计结果</h2>
+    <div id="stats"></div>
+    <h3>结果预览（前5条）</h3>
+    <table id="previewTable">
+      <thead>
+        <tr>
+          <th>tcName</th>
+          <th>URL</th>
+          <th>ground_truth</th>
+          <th>llm_prediction</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const statusEl = document.getElementById('status');
+    const resultsEl = document.getElementById('results');
+    const statsEl = document.getElementById('stats');
+    const tbody = document.querySelector('#previewTable tbody');
+
+    startBtn.addEventListener('click', async () => {
+      startBtn.disabled = true;
+      resultsEl.style.display = 'none';
+      statsEl.innerHTML = '';
+      tbody.innerHTML = '';
+
+      // 开始轮询进度
+      let pollId = setInterval(async () => {
+        try {
+          const r = await fetch('/progress');
+          const d = await r.json();
+          statusEl.textContent = d.msg || '处理中…';
+        } catch (_) {}
+      }, 800);
+
+      try {
+        const resp = await fetch('/run', { method: 'POST' });
+        const data = await resp.json();
+        if (!data.ok) throw new Error(data.error || '执行失败');
+
+        // 渲染统计
+        const s = data.stats || {};
+        const pct = (x) => typeof x === 'number' ? (x * 100).toFixed(2) + '%' : '-';
+        statsEl.innerHTML = `
+          <div class="stat">总样本数: <b>${s.total_samples ?? '-'}</b></div>
+          <div class="stat">有效预测: <b>${s.valid_predictions ?? '-'}</b></div>
+          <div class="stat">准确率: <b>${pct(s.accuracy)}</b></div>
+          <div class="stat">Precision: <b>${pct(s.precision)}</b></div>
+          <div class="stat">Recall: <b>${pct(s.recall)}</b></div>
+          <div class="stat">F1: <b>${pct(s.f1_score)}</b></div>
+        `;
+
+        // 渲染预览
+        (data.preview || []).forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${r.tcName ?? ''}</td>
+            <td>${r.URL ?? ''}</td>
+            <td>${r.ground_truth ?? ''}</td>
+            <td>${r.llm_prediction ?? ''}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        resultsEl.style.display = 'block';
+        statusEl.textContent = '完成';
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = '出错：' + err.message;
+      } finally {
+        clearInterval(pollId);
+        startBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
